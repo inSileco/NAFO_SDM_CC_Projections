@@ -178,7 +178,7 @@ fold_metrics_summary_df <- bind_rows(
 )
 write_csv(
   fold_metrics_summary_df,
-  paste0(output_folder, "/", vmeoi, "_summary_fold_metrics.csv")
+  file.path(output_folder, paste0(vmeoi, "_summary_fold_metrics.csv"))
 )
 
 fold_metrics_summary_pretty_df <- fold_metrics_summary_df |>
@@ -192,7 +192,7 @@ fold_metrics_summary_pretty_df <- fold_metrics_summary_df |>
   select(-c(VME_Group, metric, mean_value, sd_value))
 write.csv(
   fold_metrics_summary_pretty_df,
-  paste0(output_folder, "/", vmeoi, "_summary_select_fold_metrics.csv"),
+  file.path(output_folder, paste0(vmeoi, "_summary_select_fold_metrics.csv")),
   row.names = FALSE,
   fileEncoding = "Windows-1252"
 ) # to prevent it saving with extra special characters
@@ -231,7 +231,7 @@ fold_var_imp_df <- lapply(fold_var_imp, function(fold) {
   ungroup()
 write.csv(
   fold_var_imp_df,
-  file = paste0(output_folder, "/", vmeoi, "_table_rf_FoldVarImp.csv"),
+  file = file.path(output_folder, paste0(vmeoi, "_table_rf_FoldVarImp.csv")),
   row.names = FALSE
 )
 
@@ -254,7 +254,7 @@ overall_var_imp_df <- fold_var_imp_df |>
   select(-c(mean_dec, sd_dec, vmeoi, final_cor_thresh, vif))
 write.csv(
   overall_var_imp_df,
-  file = paste0(output_folder, "/", vmeoi, "_table_rf_OverallVarImp.csv"),
+  file = file.path(output_folder, paste0(vmeoi, "_table_rf_OverallVarImp.csv")),
   row.names = FALSE,
   fileEncoding = "Windows-1252"
 ) # fileEncoding argument makes sure no special characters get appended
@@ -265,7 +265,7 @@ ggplot(fold_var_imp_df, aes(y = Variable, x = MeanDecreaseGini)) +
   labs(y = "Predictor Variable", x = "Mean Decrease in Gini Index")
 
 ggsave(
-  filename = paste0(output_folder, "/", vmeoi, "_plot_rf_VarImp.jpg"),
+  filename = file.path(output_folder, paste0(vmeoi, "_plot_rf_VarImp.jpg")),
   width = 6,
   height = 4
 )
@@ -290,7 +290,10 @@ fold_partial_df <- lapply(fold_partialdep, function(fold) {
   )
 write.csv(
   fold_partial_df,
-  file = paste0(output_folder, "/", vmeoi, "_table_rf_PartialDep_Pres.csv"),
+  file = file.path(
+    output_folder,
+    paste0(vmeoi, "_table_rf_PartialDep_Pres.csv")
+  ),
   row.names = FALSE
 )
 
@@ -301,7 +304,10 @@ ggplot(fold_partial_df, aes(x = value, y = yhat, colour = Fold)) +
   labs(x = "Predictor Value", y = "Partial Dependence")
 
 ggsave(
-  filename = paste0(output_folder, "/", vmeoi, "_plot_rf_PartialDep_Pres.jpg"),
+  filename = file.path(
+    output_folder,
+    paste0(vmeoi, "_plot_rf_PartialDep_Pres.jpg")
+  ),
   width = 10,
   height = 8
 )
@@ -325,23 +331,29 @@ rf_res_absprob_baseline <- lapply(
   terra::rast(.) %>%
   terra::mean(.)
 
+
+dir_ras <- file.path(output_folder, "RFModelRasters")
+dir.create(dir_ras, showWarnings = FALSE)
+
 terra::writeRaster(
   rf_res_presprob_baseline,
-  paste0(
-    output_folder,
-    "/RFModelRasters/",
-    vmeoi,
-    "_rf_res_baseline_rawPresenceProb.tif"
+  file.path(
+    dir_ras,
+    paste0(
+      vmeoi,
+      "_rf_res_baseline_rawPresenceProb.tif"
+    )
   ),
   overwrite = TRUE
 )
 terra::writeRaster(
   rf_res_absprob_baseline,
-  paste0(
-    output_folder,
-    "/RFModelRasters/",
-    vmeoi,
-    "_rf_res_baseline_rawAbsenceProb.tif"
+  file.path(
+    dir_ras,
+    paste0(
+      vmeoi,
+      "_rf_res_baseline_rawAbsenceProb.tif"
+    )
   ),
   overwrite = TRUE
 )
@@ -356,15 +368,16 @@ rf_res_presprob_proj <- map(period_all, function(poi) {
 
     terra::writeRaster(
       fold_layers,
-      paste0(
-        output_folder,
-        "/RFModelRasters/",
-        vmeoi,
-        "_rf_res_proj_rawPresenceProb_",
-        poi,
-        "_",
-        sspoi,
-        ".tif"
+      file.path(
+        dir_ras,
+        paste0(
+          vmeoi,
+          "_rf_res_proj_rawPresenceProb_",
+          poi,
+          "_",
+          sspoi,
+          ".tif"
+        )
       ),
       overwrite = TRUE
     )
@@ -385,15 +398,16 @@ rf_res_absprob_proj <- map(period_all, function(poi) {
 
     terra::writeRaster(
       fold_layers,
-      paste0(
-        output_folder,
-        "/RFModelRasters/",
-        vmeoi,
-        "_rf_res_proj_rawAbsenceProb_",
-        poi,
-        "_",
-        sspoi,
-        ".tif"
+      file.path(
+        dir_ras,
+        paste0(
+          vmeoi,
+          "_rf_res_proj_rawAbsenceProb_",
+          poi,
+          "_",
+          sspoi,
+          ".tif"
+        )
       ),
       overwrite = TRUE
     )
@@ -449,13 +463,14 @@ lapply(ls(pattern = "rf_res_baseline"), function(res_name) {
   res_raster <- get(res_name)
   terra::writeRaster(
     res_raster,
-    filename = paste0(
-      output_folder,
-      "/RFModelRasters/",
-      vmeoi,
-      "_",
-      res_name,
-      ".tif"
+    filename = file.path(
+      dir_ras,
+      paste0(
+        vmeoi,
+        "_",
+        res_name,
+        ".tif"
+      )
     ),
     overwrite = TRUE
   )
@@ -520,15 +535,16 @@ for (i in 1:length(rf_pred_foldstack_proj)) {
     res_raster <- get(res_name)
     terra::writeRaster(
       res_raster,
-      filename = paste0(
-        output_folder,
-        "/RFModelRasters/",
-        vmeoi,
-        "_",
-        res_name,
-        "_",
-        comb_name,
-        ".tif"
+      filename = file.path(
+        dir_ras,
+        paste0(
+          vmeoi,
+          "_",
+          res_name,
+          "_",
+          comb_name,
+          ".tif"
+        )
       ),
       overwrite = TRUE
     )
