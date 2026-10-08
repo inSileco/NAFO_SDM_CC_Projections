@@ -45,26 +45,16 @@ cat("Running modelling for VME group:", vmeoi, "\n")
 source("R/analysis/03_Modelling.R")
 
 ## Extrapolation outputs loop ----
-for (i in 1:length(unlist(list(
-  baseline = vme_layers_baseline,
-  unlist(vme_layers_proj)
-)))) {
-  prediction_grid <- unlist(list(
-    baseline = vme_layers_baseline,
-    unlist(vme_layers_proj)
-  ))[[i]]
-  output_name <- names(unlist(list(
-    baseline = vme_layers_baseline,
-    unlist(vme_layers_proj)
-  )))[i]
+ls_pred_grid_all <- c(baseline = vme_layers_baseline, unlist(vme_layers_proj))
+for (i in seq_along(ls_pred_grid_all)) {
+  prediction_grid <- ls_pred_grid_all[[i]]
+  output_name <- names(ls_pred_grid_all)[i]
   cat(paste(
     "Computing extrapolations for",
-    names(unlist(list(
-      baseline = vme_layers_baseline,
-      unlist(vme_layers_proj)
-    )))[i],
+    names(ls_pred_grid_all)[i],
     "\n"
   ))
+  # KC: would make more sense to have tested functions rather than a script
   source("R/analysis/05_Extrapolation.R")
 }
 
