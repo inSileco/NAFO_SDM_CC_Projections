@@ -2,7 +2,7 @@
 # Looping through periods/SSPs/VME groups
 
 # Load data ----
-source("code/01_LoadData.R")
+source("R/analysis/01_LoadData.R")
 
 vmeoi <- "boltenia"
 
@@ -33,47 +33,47 @@ fold_metrics_summary_df <- data.frame(
   
   ## Variable selection for this VME group ----
   cat("Running variable selection for VME group:", vmeoi, "\n")
-  source("code/02_VariableSelection.R")
+  source("R/analysis/02_VariableSelection.R")
   
   ## Modelling for this VME group ----
   cat("Running modelling for VME group:", vmeoi, "\n")
-  source("code/03_Modelling.R")
+  source("R/analysis/03_Modelling.R")
 
   ## Extrapolation outputs loop ----
   for (i in 1:length(unlist(list(baseline = vme_layers_baseline, unlist(vme_layers_proj))))) {
     prediction_grid <- unlist(list(baseline = vme_layers_baseline, unlist(vme_layers_proj)))[[i]]
     output_name <- names(unlist(list(baseline = vme_layers_baseline, unlist(vme_layers_proj))))[i]
     cat(paste("Computing extrapolations for",names(unlist(list(baseline = vme_layers_baseline, unlist(vme_layers_proj))))[i],"\n"))
-    source("code/05_Extrapolation.R")
+    source("R/analysis/05_Extrapolation.R")
   }  
 
   ## Extrapolations for P1-4 for SSP 2-4.5 (specific figures within body of text) ----
   cat("Computing specific extrapolations for SSP 2-4.5\n")
-  source("code/06_ExtrapolationsSSP245.R")
+  source("R/analysis/06_ExtrapolationsSSP245.R")
 
   ## Extrapolations percentages tables overall and by variable ----
   cat("Creating extrapolation percentages tables\n")
-  source("code/12_ExtrapolationPercTables.R")
+  source("R/analysis/12_ExtrapolationPercTables.R")
   
   ## Maps per VME group ----
   cat("Creating final modelling maps\n")
-  source("code/04_Mapping.R")
+  source("R/analysis/04_Mapping.R")
 
   ## Output functional response curves ----
   cat("Creating functional response curves\n")
-  source("code/09_FunctionalResponseCurves.R")
+  source("R/analysis/09_FunctionalResponseCurves.R")
 
   ## Environmental variable layer maps ----
   cat("Outputting CMIP selected variables three-plot comparisons\n")
-  source("code/08_SelVarsThreePlotComparison.R")
+  source("R/analysis/08_SelVarsThreePlotComparison.R")
 
   ## Correlation matrix plots + correlation differences ----
   cat("Extracting correlation matrix tables, plots, and differences\n")
-  source("code/11_VarCorrTimeSeries.R")
+  source("R/analysis/11_VarCorrTimeSeries.R")
 
   ## Selected CMIP vars ADF + Tukey table ----
   cat("Outputting CMIP variable ADF & Tukey results table\n")
-  source("code/10_CMIPADFTable.R")
+  source("R/analysis/10_CMIPADFTable.R")
 
   ## Re-run modelling without variable selection (all CMIP, still only top selected terrain variable) ----
   ### Prepare VME group dataframe ----
@@ -86,7 +86,7 @@ fold_metrics_summary_df <- data.frame(
   selected_vme_vars <- vme_vars
 
   ### Run modelling ----
-  source("code/07_ModellingNoVarSel.R")
+  source("R/analysis/07_ModellingNoVarSel.R")
     
 # }
 
