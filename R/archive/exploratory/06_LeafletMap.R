@@ -14,11 +14,15 @@ sa <- terra::rast("data/raw/Bathy_Layers/GEBCO2024_FS005.tif") %>%
   summarise(geometry = sf::st_union(geometry))
 
 # KDE polygons
-kde_poly <- sf::read_sf("data/raw/Mapping_Layers/NAFO_2025_VME_Goup_Threshold_KDE_Polygons/KDE_Analyses_VME_2025_Threshold_Polygons_BlackCoral.shp") %>%
-    sf::st_transform(4326)
+kde_poly <- sf::read_sf(
+  "data/raw/Mapping_Layers/NAFO_2025_VME_Goup_Threshold_KDE_Polygons/KDE_Analyses_VME_2025_Threshold_Polygons_BlackCoral.shp"
+) %>%
+  sf::st_transform(4326)
 
 # VME closures
-vme_closures <- sf::read_sf("data/raw/Mapping_Layers/NAFO_VME_closures_2022/NAFO_VME_closures_2022.shp")
+vme_closures <- sf::read_sf(
+  "data/raw/Mapping_Layers/NAFO_VME_closures_2022/NAFO_VME_closures_2022.shp"
+)
 
 # VME presence/absence points
 pa <- read_csv("data/processed/VME_group_PA_df.csv", show_col_types = FALSE) %>%
@@ -35,13 +39,20 @@ abs <- filter(pa, VME_P_A == 0)
 # )
 
 # Bathymetry/terrain layers
-bathy_layers <- list.files(path = "data/raw/Bathy_Layers", 
-                           pattern = "\\.tif$", full.names = TRUE) %>%
+bathy_layers <- list.files(
+  path = "data/raw/Bathy_Layers",
+  pattern = "\\.tif$",
+  full.names = TRUE
+) %>%
   set_names(., nm = basename(.) %>% tools::file_path_sans_ext()) %>%
   lapply(terra::rast) %>%
   lapply(terra::project, "EPSG:4326")
 
-names(bathy_layers) <- gsub("GEBCO2024_FS005_StudyArea_","",names(bathy_layers))
+names(bathy_layers) <- gsub(
+  "GEBCO2024_FS005_StudyArea_",
+  "",
+  names(bathy_layers)
+)
 names(bathy_layers)[1] <- "FS005"
 
 # CMIP layers -> baseline and by SSP/period
@@ -55,7 +66,7 @@ projection_layers <- unlist(map(unlist(cmip_layers_future), function(i) {
 projection_layers <- unlist(cmip_layers_future)
 
 all_layers <- c(
-  bathy_layers, 
+  bathy_layers,
   baseline_layers,
   projection_layers
 )
@@ -71,26 +82,27 @@ leaflet_map <- reduce(
       opacity = 0.8
     )
   },
-  .init = leaflet() |> 
-    addTiles() |> 
+  .init = leaflet() |>
+    addTiles() |>
     addLayersControl(
-      baseGroups = names(all_layers), 
-      options = layersControlOptions(collapsed = FALSE))
-) 
+      baseGroups = names(all_layers),
+      options = layersControlOptions(collapsed = FALSE)
+    )
+)
 
 
 leaflet() %>%
   # fitBounds(-63.2,43.5,-61.8,46) %>%
-  
+
   # Basemap
   addProviderTiles(providers$OpenTopoMap) %>%
-  
+
   addMapPane('baselayer', zIndex = 410) %>%
-  addMapPane("NAFO_SA", zIndex = 420) %>%  
-  addMapPane('absence', zIndex = 430) %>%  
+  addMapPane("NAFO_SA", zIndex = 420) %>%
+  addMapPane('absence', zIndex = 430) %>%
   addMapPane("presence", zIndex = 435) %>%
   addMapPane("polygons", zIndex = 440) %>%
-  
+
   # NAFO SA boundary
   addPolylines(
     data = sa,
@@ -109,8 +121,8 @@ leaflet() %>%
     fillOpacity = 0.5,
     group = 'VME closures',
     options = pathOptions(pane = 'polygons')
-  ) %>%  
-  
+  ) %>%
+
   # KDE polygons
   addPolygons(
     data = kde_poly,
@@ -124,7 +136,7 @@ leaflet() %>%
     group = 'KDE polygons',
     options = pathOptions(pane = 'polygons')
   ) %>%
-    
+
   # VME resence/absence points
   # addCircleMarkers(
   #   data = pa,
@@ -155,26 +167,21 @@ leaflet() %>%
     group = 'VME Presences',
     options = pathOptions(pane = 'presence')
   ) %>%
-  
+
   # Layers control
   addLayersControl(
-    overlayGroups = c("VME closures","KDE polygons","VME Absences","VME Presences"),
+    overlayGroups = c(
+      "VME closures",
+      "KDE polygons",
+      "VME Absences",
+      "VME Presences"
+    ),
     options = layersControlOptions(collapsed = FALSE)
-  ) 
+  )
 
-
-  
-
-      
-  # Bathymetry raster
-  # addRasterImage(bathy,
-  #                maxBytes = 27000000,
-  #                colors = pal_bathy,
-  #                opacity = 0.8,
-  #                group = 'Bathymetry') %>%
-    
-
-  
-
-
-    
+# Bathymetry raster
+# addRasterImage(bathy,
+#                maxBytes = 27000000,
+#                colors = pal_bathy,
+#                opacity = 0.8,
+#                group = 'Bathymetry') %>%

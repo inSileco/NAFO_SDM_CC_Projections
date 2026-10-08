@@ -26,13 +26,12 @@ fold_model <- list()
 
 # Begin looping across folds ----
 for (i in 1:10) {
-  
   # Get fold indices ----
   train_idx <- folds[[i]]
   test_idx <- setdiff(1:nrow(vme_df), train_idx)
-  
+
   # Train model on this fold ----
-  cat("Training fold", i, "\n")  
+  cat("Training fold", i, "\n")
   set.seed(loop_seed + i)
   fold_model[[i]] <- randomForest::randomForest(
     VME_P_A ~ .,
@@ -43,45 +42,47 @@ for (i in 1:10) {
     replace = FALSE,
     importance = TRUE
   )
-  
+
   cat("  Retrieving fold predictions and metrics\n")
   # Get predictions on held-out test data ----
-  rf_test_pred_prob <- predict(fold_model[[i]], 
-    newdata = vme_df[test_idx, ], 
-    type = "prob")
-  
+  rf_test_pred_prob <- predict(
+    fold_model[[i]],
+    newdata = vme_df[test_idx, ],
+    type = "prob"
+  )
+
   # Extract probability of positive class (assuming second level) ----
   lev <- levels(vme_df$VME_P_A)
   pred_prob <- rf_test_pred_prob[, lev[2]]
   obs_numeric <- ifelse(vme_df$VME_P_A[test_idx] == lev[2], 1, 0)
-  
+
   # Calculate optimal threshold using Sens=Spec method ----
   threshold_df <- data.frame(
     id = 1:length(test_idx),
     PA = ifelse(vme_df$VME_P_A[test_idx] == lev[2], 1, 0),
     predprob = rf_test_pred_prob[, lev[2]]
   )
-  
+
   opttsh <- PresenceAbsence::optimal.thresholds(
     threshold_df,
-    opt.methods = "Sens=Spec"  # if wanted to also test prevalence: c("Sens=Spec", "ObsPrev")
+    opt.methods = "Sens=Spec" # if wanted to also test prevalence: c("Sens=Spec", "ObsPrev")
   ) %>%
     pull(predprob)
-  
+
   # Apply optimal threshold ----
   optimal_pred <- ifelse(pred_prob >= opttsh, lev[2], lev[1])
   optimal_pred <- factor(optimal_pred, levels = lev)
   obs_factor <- vme_df$VME_P_A[test_idx]
-  
+
   # Calculate confusion matrix ----
   cm <- caret::confusionMatrix(optimal_pred, obs_factor, positive = lev[2])
-  
+
   # Extract and store metrics ----
   metrics <- unlist(c(cm$overall, cm$byClass))
   metrics["TSS"] <- cm$byClass["Sensitivity"] + cm$byClass["Specificity"] - 1
   metrics["OptThreshold"] <- opttsh
   metrics["Fold"] <- i
-  
+
   fold_metrics_list[[i]] <- metrics
 
   # # Fold variable importance ----
@@ -93,13 +94,13 @@ for (i in 1:10) {
   # # Fold partial dependence data ----
   # # cat("  Extracting partial dependence data\n")
   # # fold_partialdep[[i]] <- lapply(selected_vme_vars, function(var) {
-  # #   pdp::partial(fold_model[[i]], 
+  # #   pdp::partial(fold_model[[i]],
   # #     pred.var = var,
   # #     plot = FALSE) %>%
   # #     mutate(Variable = colnames(.)[1]) %>%
   # #     rename(value = var)
   # # })
-  
+
   # cat("  Generating spatial predictions under baseline conditions\n")
   # # Spatial predictions for this fold ----
   # fold_predictions_spatial_baseline[[i]] <- terra::predict(
@@ -109,12 +110,12 @@ for (i in 1:10) {
   #   na.rm = TRUE,
   #   index = 1:2
   # )
-  
+
   # # Convert predictions to presence/absence using optimal threshold ----
   # fold_predictions_spatial_baseline_reclass[[i]] <- terra::classify(
-  #   fold_predictions_spatial_baseline[[i]][[2]], 
+  #   fold_predictions_spatial_baseline[[i]][[2]],
   #   rcl = matrix(c(-Inf, opttsh, 0,
-  #                   opttsh, Inf, 1), 
+  #                   opttsh, Inf, 1),
   #                   ncol = 3, byrow = TRUE)
   # )
 
@@ -128,32 +129,34 @@ for (i in 1:10) {
   #       type = 'prob',
   #       na.rm = TRUE,
   #       index = 1:2
-  #     )      
+  #     )
   #   }) %>%
   #     set_names(ssp_all)
   # }) %>%
   #   set_names(period_all)
-  
+
   # # Convert predictions to presence/absence using optimal threshold ----
   # fold_predictions_spatial_proj_reclass[[i]] <- lapply(period_all, function(poi) {
   #   lapply(ssp_all, function(sspoi) {
   #     terra::classify(
-  #       fold_predictions_spatial_proj[[i]][[poi]][[sspoi]][[2]], 
+  #       fold_predictions_spatial_proj[[i]][[poi]][[sspoi]][[2]],
   #       rcl = matrix(c(-Inf, opttsh, 0,
-  #                       opttsh, Inf, 1), 
+  #                       opttsh, Inf, 1),
   #                       ncol = 3, byrow = TRUE)
-  #     )      
+  #     )
   #   }) %>% set_names(ssp_all)
   # }) %>% set_names(period_all)
-
 }
 
 cat("Modelling complete. Processing results...\n")
 
 # Combine all fold metrics into a dataframe ----
-fold_metrics_df_i <- do.call(rbind, lapply(fold_metrics_list, function(x) {
-  data.frame(t(x))
-})) %>%
+fold_metrics_df_i <- do.call(
+  rbind,
+  lapply(fold_metrics_list, function(x) {
+    data.frame(t(x))
+  })
+) %>%
   pivot_longer(cols = -"Fold", names_to = "metric", values_to = "value") %>%
   mutate(VME_Group = vmeoi) %>%
   relocate(VME_Group, Fold, metric, value)
@@ -162,27 +165,41 @@ fold_metrics_df_i <- do.call(rbind, lapply(fold_metrics_list, function(x) {
 # Summarise metrics across folds ----
 fold_metrics_summary_df_i <- fold_metrics_df_i %>%
   group_by(VME_Group, metric) %>%
-  summarise(mean_value = mean(value, na.rm = TRUE),
-            sd_value = sd(value, na.rm = TRUE),
-            .groups = "drop")
+  summarise(
+    mean_value = mean(value, na.rm = TRUE),
+    sd_value = sd(value, na.rm = TRUE),
+    .groups = "drop"
+  )
 # fold_metrics_summary_df <- bind_rows(fold_metrics_summary_df, fold_metrics_summary_df_i)
-write_csv(fold_metrics_summary_df_i, paste0(output_folder,"/",vmeoi,"_summary_fold_metrics_novarsel.csv"))
+write_csv(
+  fold_metrics_summary_df_i,
+  paste0(output_folder, "/", vmeoi, "_summary_fold_metrics_novarsel.csv")
+)
 
 fold_metrics_summary_pretty_df <- fold_metrics_summary_df_i |>
-  filter(metric %in% c("Balanced.Accuracy","Sensitivity","Specificity","TSS")) |>
+  filter(
+    metric %in% c("Balanced.Accuracy", "Sensitivity", "Specificity", "TSS")
+  ) |>
   mutate(
-    `Accuracy Measure` = gsub("\\."," ",metric),
-    `Reference Mean ± SD` = paste(round(mean_value,2), "±", round(sd_value,2))) |>
+    `Accuracy Measure` = gsub("\\.", " ", metric),
+    `Reference Mean ± SD` = paste(round(mean_value, 2), "±", round(sd_value, 2))
+  ) |>
   select(-c(VME_Group, metric, mean_value, sd_value))
 write.csv(
-  fold_metrics_summary_pretty_df, 
-  paste0(output_folder,"/",vmeoi,"_summary_select_fold_metrics_novarsel.csv"), 
+  fold_metrics_summary_pretty_df,
+  paste0(
+    output_folder,
+    "/",
+    vmeoi,
+    "_summary_select_fold_metrics_novarsel.csv"
+  ),
   row.names = FALSE,
-  fileEncoding = "Windows-1252")  # to prevent it saving with extra special characters
+  fileEncoding = "Windows-1252"
+) # to prevent it saving with extra special characters
 
 # # Create spatial predictions stack ----
 # rf_pred_foldstack_baseline <- terra::rast(fold_predictions_spatial_baseline_reclass)
-# # terra::writeRaster(rf_pred_foldstack_baseline, 
+# # terra::writeRaster(rf_pred_foldstack_baseline,
 # #   filename = paste0(main_output_folder, vmeoi, "/", vmeoi, "_rf_spatial_predictions_baseline.tif"), overwrite = TRUE)
 
 # rf_pred_foldstack_proj <- map(period_all, function(poi) {
@@ -192,7 +209,6 @@ write.csv(
 #   }) %>% set_names(ssp_all)
 # }) %>% set_names(period_all) %>%
 #   unlist()
-
 
 # # Extract variable importance for final selected variables ----
 # cat("Extracting RF model variable importance metrics...\n")
@@ -205,7 +221,7 @@ write.csv(
 #   bind_rows(.id = "Fold") %>%
 #   mutate(Variable = fct_reorder(Variable, MeanDecreaseGini, .fun = mean)) %>%
 #   ungroup()
-# write.csv(fold_var_imp_df, 
+# write.csv(fold_var_imp_df,
 #   file = paste0(output_folder,"/",vmeoi,"_table_rf_VarImp.csv"), row.names = FALSE)
 
 # ggplot(fold_var_imp_df, aes(y = Variable, x = MeanDecreaseGini)) +
@@ -213,7 +229,7 @@ write.csv(
 #   theme_bw() +
 #   labs(y = "Predictor Variable", x = "Mean Decrease in Gini Index")
 
-# ggsave(filename = paste0(output_folder,"/",vmeoi,"_plot_rf_VarImp.jpg"), 
+# ggsave(filename = paste0(output_folder,"/",vmeoi,"_plot_rf_VarImp.jpg"),
 #   width = 6, height = 4)
 
 # # Extract partial dependence plots for each variable ----
@@ -246,23 +262,23 @@ write.csv(
 #   terra::rast(.) %>%
 #   terra::mean(.)
 
-# terra::writeRaster(rf_res_presprob_baseline, 
+# terra::writeRaster(rf_res_presprob_baseline,
 #   paste0(output_folder,"/rasters/",vmeoi,"_rf_res_baseline_rawPresenceProb.tif"), overwrite = TRUE)
-# terra::writeRaster(rf_res_absprob_baseline, 
+# terra::writeRaster(rf_res_absprob_baseline,
 #   paste0(output_folder,"/rasters/",vmeoi,"_rf_res_baseline_rawAbsenceProb.tif"), overwrite = TRUE)
 
 # ## Projections ----
 # rf_res_presprob_proj <- map(period_all, function(poi) {
 #   map(ssp_all, function(sspoi) {
-    
+
 #     fold_layers <- map(fold_predictions_spatial_proj, ~ .x[[poi]][[sspoi]])
 #     fold_layers <- lapply(fold_layers, `[[`, 2) %>%
 #       terra::rast(.) %>%
 #       terra::mean(.)
 
-#     terra::writeRaster(fold_layers, 
+#     terra::writeRaster(fold_layers,
 #       paste0(output_folder,"/rasters/",vmeoi,"_rf_res_proj_rawPresenceProb_",poi,"_",sspoi,".tif"), overwrite = TRUE)
-    
+
 #     return(fold_layers)
 #   }) %>% set_names(ssp_all)
 # }) %>% set_names(period_all) %>%
@@ -270,20 +286,19 @@ write.csv(
 
 # rf_res_absprob_proj <- map(period_all, function(poi) {
 #   map(ssp_all, function(sspoi) {
-    
+
 #     fold_layers <- map(fold_predictions_spatial_proj, ~ .x[[poi]][[sspoi]])
 #     fold_layers <- lapply(fold_layers, `[[`, 1) %>%
 #       terra::rast(.) %>%
 #       terra::mean(.)
 
-#     terra::writeRaster(fold_layers, 
+#     terra::writeRaster(fold_layers,
 #       paste0(output_folder,"/rasters/",vmeoi,"_rf_res_proj_rawAbsenceProb_",poi,"_",sspoi,".tif"), overwrite = TRUE)
-    
+
 #     return(fold_layers)
 #   }) %>% set_names(ssp_all)
 # }) %>% set_names(period_all) %>%
 #   unlist()
-
 
 # # Calculate spatial metrics across folds ----
 
@@ -312,7 +327,7 @@ write.csv(
 # rm(rf_res_baseline_freq_count, rf_res_baseline_AvgProb)
 # lapply(ls(pattern = "rf_res_baseline"), function(res_name) {
 #   res_raster <- get(res_name)
-#   terra::writeRaster(res_raster, 
+#   terra::writeRaster(res_raster,
 #     filename = paste0(output_folder,"/rasters/",vmeoi,"_",res_name,".tif"), overwrite = TRUE)
 # })
 
@@ -338,10 +353,10 @@ write.csv(
 #   # }) %>% set_names(period_all) %>%
 #   #   unlist()
 
-#   rf_res_proj_AvgProb <- map(fold_predictions_spatial_proj, 
+#   rf_res_proj_AvgProb <- map(fold_predictions_spatial_proj,
 #     ~ .x[[str_extract(comb_name, "^P\\d")]][[str_extract(comb_name,"\\d-\\d\\.\\d$")]])
 #   rf_res_proj_AvgProb <- Reduce("+", rf_res_proj_AvgProb) / 10
-  
+
 #   ### Average probability of maximum frequency class
 #   rf_res_proj_MaxClassAvgProb <- terra::selectRange(rf_res_proj_AvgProb, rf_res_proj_MaxClass + 1)
 
@@ -350,12 +365,12 @@ write.csv(
 
 #   ### Number of models predicting presence
 #   rf_res_proj_CVSum <- terra::app(rf_pred_foldstack_proj[[i]], sum, na.rm = TRUE)
-  
+
 #   ### Save projection rasters for each metric ----
 #   rm(rf_res_proj_freq_count, rf_res_proj_AvgProb)
 #   lapply(ls(pattern = "rf_res_proj"), function(res_name) {
 #     res_raster <- get(res_name)
-#     terra::writeRaster(res_raster, 
+#     terra::writeRaster(res_raster,
 #       filename = paste0(output_folder,"/rasters/",vmeoi,"_",res_name,"_",comb_name,".tif"), overwrite = TRUE)
 #   })
 

@@ -18,6 +18,20 @@ vme_pts_pres <- cmip_comb_df |>
 
 # Create table ----
 var_table <- bind_rows(vme_pts_pa, vme_pts_pres, .id = "Dataset") |>
-  mutate(Dataset = replace_values(Dataset, "1" ~ "Presence + Absence" , "2" ~ "Presence Only"))
+  mutate(
+    Dataset = replace_values(
+      Dataset,
+      "1" ~ "Presence + Absence",
+      "2" ~ "Presence Only"
+    )
+  )
 
-write_csv(var_table, file = paste0(output_folder,"/",vmeoi,"_SelectedVariables_PA_PresOnly_mean_sd.csv"))
+write_csv(
+  var_table,
+  file = paste0(
+    output_folder,
+    "/",
+    vmeoi,
+    "_SelectedVariables_PA_PresOnly_mean_sd.csv"
+  )
+)
