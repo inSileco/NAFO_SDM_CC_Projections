@@ -3,7 +3,7 @@
 # Load data ----
 source("R/analysis/01_LoadData.R")
 
-vmeoi <- "boltenia"
+vmeoi <- "black_corals" # "boltenia"
 
 # Initialise fold metrics dataframe to save results from each fold of each iteration ----
 fold_metrics_summary_df <- data.frame(
