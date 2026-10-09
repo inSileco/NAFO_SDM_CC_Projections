@@ -77,59 +77,51 @@ extrapolation_rasters_mask <- lapply(
 ) %>%
   set_names(names(extrapolation_rasters))
 
-# Fixing combinatorial layers for P3 SSP 3-7.0 for black corals ----
-if (output_name == "P3.3-7.0" & vmeoi == "black_corals") {
-  replace_layer <- terra::merge(
-    extrapolation_rasters_mask[[8]],
-    extrapolation_rasters_mask[[10]]
-  )
-  comp_layer <- cmip_layers_proj[[1]][[1]][[1]] %>%
+# Fixing combinatorial layers with cells missing from the dsmextra rasters
+patch_combinatorial <- function(rasters, ref_names, target_names, ref_grid) {
+  stopifnot(all(c(ref_names, target_names) %in% names(rasters)))
+  replace_layer <- do.call(terra::merge, unname(rasters[ref_names]))
+  comp_layer <- ref_grid %>%
     terra::crop(replace_layer)
 
   missing_cells <- terra::logic(replace_layer, comp_layer, oper = "is.na") %>%
     terra::mask(comp_layer)
 
-  extrapolation_rasters_mask[[6]] <- terra::resample(
-    extrapolation_rasters_mask[[6]],
-    missing_cells
-  ) %>%
-    terra::mask(missing_cells) %>%
-    terra::crop(missing_cells)
-
-  extrapolation_rasters_mask[[9]] <- terra::resample(
-    extrapolation_rasters_mask[[9]],
-    missing_cells
-  ) %>%
-    terra::mask(missing_cells) %>%
-    terra::crop(missing_cells)
-
-  rm(replace_layer, comp_layer, missing_cells)
+  for (nm in target_names) {
+    rasters[[nm]] <- terra::resample(rasters[[nm]], missing_cells) %>%
+      terra::mask(missing_cells) %>%
+      terra::crop(missing_cells)
+  }
+  rasters
 }
 
-# Fixing combinatorial layers for P2 SSP 2-4.5 for bryozoans ----
-if (output_name == "P2.2-4.5" & vmeoi == "bryozoan") {
-  replace_layer <- terra::merge(
-    extrapolation_rasters_mask[[7]],
-    extrapolation_rasters_mask[[9]]
+## P3 SSP 3-7.0 for black corals ----
+if (output_name == "P3.3-7.0" & vmeoi == "black_corals") {
+  extrapolation_rasters_mask <- patch_combinatorial(
+    extrapolation_rasters_mask,
+    ref_names = c("PresenceOnly.mic.univariate", "PresenceOnly.mic.analogue"),
+    target_names = c(
+      "PresenceOnly.ExDet.combinatorial",
+      "PresenceOnly.mic.combinatorial"
+    ),
+    ref_grid = cmip_layers_proj[[1]][[1]][[1]]
   )
-  comp_layer <- cmip_layers_proj[[1]][[1]][[1]] %>%
-    terra::crop(replace_layer)
+}
 
-  missing_cells <-
-    terra::logic(replace_layer, comp_layer, oper = "is.na") %>%
-    terra::mask(comp_layer)
-
-  extrapolation_rasters_mask[[8]] <-
-    terra::resample(extrapolation_rasters_mask[[8]], missing_cells) %>%
-    terra::mask(missing_cells) %>%
-    terra::crop(missing_cells)
-
-  extrapolation_rasters_mask[[11]] <-
-    terra::resample(extrapolation_rasters_mask[[11]], missing_cells) %>%
-    terra::mask(missing_cells) %>%
-    terra::crop(missing_cells)
-
-  rm(replace_layer, comp_layer, missing_cells)
+## P2 SSP 2-4.5 for bryozoans ----
+if (output_name == "P2.2-4.5" & vmeoi == "bryozoan") {
+  extrapolation_rasters_mask <- patch_combinatorial(
+    extrapolation_rasters_mask,
+    ref_names = c(
+      "PresenceOnly.ExDet.univariate",
+      "PresenceOnly.ExDet.analogue"
+    ),
+    target_names = c(
+      "PresenceOnly.ExDet.combinatorial",
+      "PresenceOnly.mic.combinatorial"
+    ),
+    ref_grid = cmip_layers_proj[[1]][[1]][[1]]
+  )
 }
 
 # Save rasters ----
